@@ -11,18 +11,19 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v4
 
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
-
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 10
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
       - name: Set up Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -36,6 +37,10 @@ jobs:
       - name: Generate native Android project
         run: pnpm --filter @workspace/misha-mobile exec expo prebuild --platform android --non-interactive --no-install
 
+      - name: Make gradlew executable
+        working-directory: artifacts/misha-mobile/android
+        run: chmod +x gradlew
+
       - name: Build release APK
         working-directory: artifacts/misha-mobile/android
         run: ./gradlew assembleRelease
@@ -45,51 +50,3 @@ jobs:
         with:
           name: misha-android-apk
           path: artifacts/misha-mobile/android/app/build/outputs/apk/release/*.apk
-
-  ios-simulator:
-    name: iOS Simulator App
-    runs-on: macos-14
-    steps:
-      - name: Check out source
-        uses: actions/checkout@v4
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
-
-      - name: Set up pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Generate native iOS project
-        run: pnpm --filter @workspace/misha-mobile exec expo prebuild --platform ios --non-interactive --no-install
-
-      - name: Install CocoaPods
-        working-directory: artifacts/misha-mobile/ios
-        run: pod install
-
-      - name: Build unsigned simulator app
-        working-directory: artifacts/misha-mobile/ios
-        run: |
-          xcodebuild \
-            -workspace misha-mobile.xcworkspace \
-            -scheme misha-mobile \
-            -configuration Release \
-            -sdk iphonesimulator \
-            -derivedDataPath ../build/ios-simulator \
-            CODE_SIGNING_ALLOWED=NO
-
-      - name: Package simulator app
-        working-directory: artifacts/misha-mobile/build/ios-simulator/Build/Products/Release-iphonesimulator
-        run: zip -r ../../../../../../misha-ios-simulator.zip misha-mobile.app
-
-      - name: Upload iOS simulator app
-        uses: actions/upload-artifact@v4
-        with:
-          name: misha-ios-simulator
-          path: artifacts/misha-mobile/misha-ios-simulator.zip
